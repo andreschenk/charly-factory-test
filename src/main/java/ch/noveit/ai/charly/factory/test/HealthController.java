@@ -16,7 +16,7 @@ public class HealthController {
      */
     @GetMapping("/health")
     public HealthStatus health() {
-        return new HealthStatus("UP");
+        return new HealthStatus("UP", "Charly Factory Test");
     }
 
     /**
@@ -24,13 +24,19 @@ public class HealthController {
      */
     public static class HealthStatus {
         private final String status;
+        private final String application;
 
-        public HealthStatus(String status) {
+        public HealthStatus(String status, String application) {
             this.status = status;
+            this.application = application;
         }
 
         public String getStatus() {
             return status;
+        }
+
+        public String getApplication() {
+            return application;
         }
     }
 }
