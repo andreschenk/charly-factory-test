@@ -4,6 +4,7 @@ import org.springframework.stereotype.Service;
 
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.Comparator;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicLong;
 
@@ -37,6 +38,34 @@ public class ProductService {
      */
     public List<Product> findAll() {
         return Collections.unmodifiableList(products);
+    }
+
+    /**
+     * Liefert alle Produkte, optional sortiert nach einem Feld und einer Richtung.
+     *
+     * @param sort  Sortierfeld: "name" oder "price"; bei unbekanntem Wert wird null zurückgegeben
+     * @param order "asc" für aufsteigend, "desc" für absteigend; Standard ist "asc"
+     * @return sortierte Liste aller Produkte oder unveränderte Liste bei unbekanntem Sortierfeld
+     */
+    public List<Product> findAll(String sort, String order) {
+        if (!"name".equals(sort) && !"price".equals(sort)) {
+            return Collections.unmodifiableList(products);
+        }
+
+        Comparator<Product> comparator;
+        if ("name".equals(sort)) {
+            comparator = Comparator.comparing(Product::name);
+        } else {
+            comparator = Comparator.comparingDouble(Product::price);
+        }
+
+        if ("desc".equalsIgnoreCase(order)) {
+            comparator = comparator.reversed();
+        }
+
+        return products.stream()
+                .sorted(comparator)
+                .toList();
     }
 
     /**

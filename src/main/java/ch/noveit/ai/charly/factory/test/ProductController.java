@@ -8,6 +8,7 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 /**
@@ -36,13 +37,20 @@ public class ProductController {
     }
 
     /**
-     * Liefert alle Produkte als JSON-Liste.
+     * Liefert alle Produkte, optional sortiert nach Name oder Preis.
      *
-     * @ Liste aller Produkte
+     * @param sort  Sortierfeld: "name" oder "price"; bei unbekanntem Wert wird 400 zurückgegeben
+     * @param order "asc" für aufsteigend (Standard), "desc" für absteigend
+     * @return sortierte Liste aller Produkte
      */
     @GetMapping
-    public List<ProductService.Product> findAll() {
-        return productService.findAll();
+    public List<ProductService.Product> findAll(@RequestParam(required = false) String sort,
+                                                @RequestParam(required = false, defaultValue = "asc") String order) {
+        if (sort != null && !"name".equals(sort) && !"price".equals(sort)) {
+            throw new org.springframework.web.server.ResponseStatusException(
+                    org.springframework.http.HttpStatus.BAD_REQUEST, "Unbekanntes Sortierfeld: " + sort);
+        }
+        return productService.findAll(sort, order);
     }
 
     /**
