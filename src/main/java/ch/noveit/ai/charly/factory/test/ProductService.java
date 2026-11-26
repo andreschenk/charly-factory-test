@@ -33,10 +33,26 @@ public class ProductService {
     /**
      * Liefert alle Produkte.
      *
-     * @ Liste aller Produkte
+     * @return unmodifizierbare Liste aller Produkte
      */
     public List<Product> findAll() {
         return Collections.unmodifiableList(products);
+    }
+
+    /**
+     * Liefert alle Produkte, deren Name den Suchtext (case-insensitive) enthält.
+     *
+     * @param searchText Suchtext oder null für keine Filterung
+     * @return gefilterte Liste aller Produkte
+     */
+    public List<Product> findByNameContainingIgnoreCase(String searchText) {
+        if (searchText == null || searchText.isBlank()) {
+            return findAll();
+        }
+        String lower = searchText.toLowerCase();
+        return products.stream()
+                .filter(p -> p.name().toLowerCase().contains(lower))
+                .toList();
     }
 
     /**
