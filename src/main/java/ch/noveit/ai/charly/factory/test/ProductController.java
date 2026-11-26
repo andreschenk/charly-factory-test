@@ -20,6 +20,10 @@ import org.springframework.web.bind.annotation.RestController;
 @RequestMapping("/products")
 public class ProductController {
 
+    private static final int DEFAULT_PAGE = 0;
+    private static final int DEFAULT_SIZE = 20;
+    private static final int MAX_SIZE = 100;
+
     private final ProductService productService;
 
     public ProductController(ProductService productService) {
@@ -57,17 +61,28 @@ public class ProductController {
     }
 
     /**
-     * Liefert alle Produkte, optional sortiert nach Name oder Preis.
+     * Liefert Produkte mit optionaler Suche und Sortierung. Bei expliziter Paginierung (page/size-Parameter) wird
+     * eine paginierte Antwort zurückgegeben; andernfalls ein einfaches Array für Abwärtskompatibilität.
      *
-     * @param sort  Sortierfeld: "name" oder "price"; ohne Angabe unveränderte Reihenfolge
-     * @param order "asc" (Standard) oder "desc" für absteigende Reihenfolge
-     * @return sortierte Liste aller Produkte
+     * @param q      Suchtext für Produktnamen (case-insensitive, Teiltext)
+     * @param sort   Sortierfeld: "name" oder "price"; ohne Angabe unveränderte Reihenfolge
+     * @param order  "asc" (Standard) oder "desc" für absteigende Reihenfolge
+     * @param page   Seitennummer (ab 0), Standard 0
+     * @param size   Seitengrösse, Standard 20, maximal 100; bei ungültigem Wert 400
+     * @return paginierte Antwort mit den gefundenen Produkten oder einfaches Array
      */
     @GetMapping
-    public List<ProductService.Product> findAll(
+    public Object findAll(
+            @RequestParam(required = false) String q,
             @RequestParam(required = false) String sort,
-            @RequestParam(defaultValue = "asc") String order) {
+            @RequestParam(defaultValue = "asc") String order,
+            @RequestParam(required = false) Integer page,
+            @RequestParam(required = false) Integer size) {
 
+        // Produkte filtern (optional nach Name)
+        List<ProductService.Product> filtered = productService.findByNameContainingIgnoreCase(q);
+
+        // Optional sortieren
         if (sort != null && !sort.isBlank()) {
             Comparator<ProductService.Product> comparator;
             switch (sort) {
@@ -80,11 +95,46 @@ public class ProductController {
             if ("desc".equalsIgnoreCase(order)) {
                 comparator = comparator.reversed();
             }
-            return productService.findAll().stream()
-                    .sorted(comparator)
-                    .toList();
+            filtered = filtered.stream().sorted(comparator).toList();
         }
-        return productService.findAll();
+
+        // Wenn page und/oder size explizit angegeben wurden, paginierte Antwort liefern
+        if (page != null || size != null) {
+            int p = Optional.ofNullable(page).orElse(DEFAULT_PAGE);
+            int s = Optional.ofNullable(size).orElse(DEFAULT_SIZE);
+
+            // Grösse validieren: nur positive Werte erlaubt, maximal 100
+            if (s <= 0 || s > MAX_SIZE) {
+                throw new org.springframework.web.server.ResponseStatusException(
+                        org.springframework.http.HttpStatus.BAD_REQUEST,
+                        "Seitengrösse muss zwischen 1 und " + MAX_SIZE + " sein");
+            }
+
+            // Seite validieren: nur nicht-negative Werte erlaubt
+            if (p < 0) {
+                throw new org.springframework.web.server.ResponseStatusException(
+                        org.springframework.http.HttpStatus.BAD_REQUEST,
+                        "Seitennummer muss grösser oder gleich 0 sein");
+            }
+
+            // Paginierung anwenden
+            long totalItems = filtered.size();
+            int totalPages = (int) Math.ceil((double) totalItems / s);
+            int fromIndex = p * s;
+            int toIndex = (int) Math.min((long) fromIndex + s, totalItems);
+
+            List<ProductService.Product> items;
+            if (fromIndex < totalItems) {
+                items = filtered.subList(fromIndex, toIndex);
+            } else {
+                items = List.of();
+            }
+
+            return new ProductPage(items, p, s, totalItems, totalPages);
+        }
+
+        // Keine Paginierung: einfaches Array für Abwärtskompatibilität
+        return filtered;
     }
 
     /**
@@ -102,6 +152,12 @@ public class ProductController {
                     org.springframework.http.HttpStatus.NOT_FOUND, "Produkt nicht gefunden: " + id);
         }
         return product;
+    }
+
+    /**
+     * Paginierte Antwortstruktur.
+     */
+    record ProductPage(List<ProductService.Product> items, int page, int size, long totalItems, int totalPages) {
     }
 
     /**
