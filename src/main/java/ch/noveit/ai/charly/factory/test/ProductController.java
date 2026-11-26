@@ -50,9 +50,13 @@ public class ProductController {
      * @throws org.springframework.web.server.ResponseStatusException bei ungültigen Daten (400)
      */
     private void validate(CreateProductRequest request) {
-        if (request.getName() == null || request.getName().isBlank() || request.getName().length() > 100) {
+        if (request.getName() == null || request.getName().isBlank()) {
             throw new org.springframework.web.server.ResponseStatusException(
-                    org.springframework.http.HttpStatus.BAD_REQUEST, "Name ist Pflicht (1–100 Zeichen)");
+                    org.springframework.http.HttpStatus.BAD_REQUEST, "Name ist Pflicht");
+        }
+        if (request.getName().length() > 100) {
+            throw new org.springframework.web.server.ResponseStatusException(
+                    org.springframework.http.HttpStatus.BAD_REQUEST, "Name darf maximal 100 Zeichen lang sein");
         }
         if (request.getPrice() <= 0) {
             throw new org.springframework.web.server.ResponseStatusException(
