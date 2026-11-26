@@ -31,8 +31,26 @@ public class ProductController {
      */
     @PostMapping
     public ResponseEntity<ProductService.Product> create(@RequestBody CreateProductRequest request) {
+        validate(request);
         ProductService.Product product = productService.create(request.getName(), request.getPrice());
         return ResponseEntity.status(201).body(product);
+    }
+
+    /**
+     * Prüft die Eingabedaten auf Gültigkeit. Wirft bei Fehlern eine 400-Exception.
+     *
+     * @param request anzulegendes Produkt
+     * @throws org.springframework.web.server.ResponseStatusException bei ungültigen Daten (400)
+     */
+    private void validate(CreateProductRequest request) {
+        if (request.getName() == null || request.getName().isBlank() || request.getName().length() > 100) {
+            throw new org.springframework.web.server.ResponseStatusException(
+                    org.springframework.http.HttpStatus.BAD_REQUEST, "Name ist Pflicht (1–100 Zeichen)");
+        }
+        if (request.getPrice() <= 0) {
+            throw new org.springframework.web.server.ResponseStatusException(
+                    org.springframework.http.HttpStatus.BAD_REQUEST, "Preis muss grösser als 0 sein");
+        }
     }
 
     /**
